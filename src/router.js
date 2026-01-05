@@ -68,8 +68,24 @@ function assignLead(leadPhone, leadName, messageText) {
 }
 
 /**
+ * Format phone number for display (e.g., "56912345678" -> "+56 9 1234 5678")
+ */
+function formatPhoneForDisplay(phone) {
+  // Remove any non-digits
+  const digits = phone.replace(/\D/g, '');
+  
+  // Chilean format: +56 9 XXXX XXXX
+  if (digits.startsWith('56') && digits.length === 11) {
+    return `+56 ${digits.slice(2, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`;
+  }
+  
+  // Default: just add + prefix
+  return `+${digits}`;
+}
+
+/**
  * Handle incoming webhook from GHL/Kirk
- * Assigns the lead and sends the first message from the agent
+ * Assigns the lead and sends notifications to both client and agent
  * @param {object} webhookData - Webhook payload
  * @param {object} config - Configuration with tokens
  * @returns {Promise<object>} - Result of the operation
@@ -89,27 +105,38 @@ async function handleIncomingLead(webhookData, config) {
     return assignment;
   }
   
-  // Step 2: Send first message from agent to lead
-  // For hello world, we use a simple text message
-  // In production, you'd use an approved template for business-initiated conversations
-  const agentMessage = `Hola${leadName ? ` ${leadName}` : ''}, soy ${assignment.agent.name} del equipo de AIM Global. Te ayudo por aquí.`;
-  
-  // Use the configured phone number ID (or agent-specific if available)
   const phoneNumberId = assignment.agent.phoneNumberId || config.phoneNumberId;
+  const agentPhoneFormatted = formatPhoneForDisplay(assignment.agent.waNumber);
+  const leadPhoneFormatted = formatPhoneForDisplay(leadPhone);
   
-  const sendResult = await whatsapp.sendTextMessage(
+  // Step 2: Send message to CLIENT with agent's contact info
+  const clientMessage = `Hola${leadName ? ` ${leadName}` : ''}, gracias por contactar a AIM Global. 🙌\n\nTe va a contactar ${assignment.agent.name} de nuestro equipo al número ${agentPhoneFormatted}.\n\n¡Pronto estaremos en contacto!`;
+  
+  const clientResult = await whatsapp.sendTextMessage(
     leadPhone,
-    agentMessage,
+    clientMessage,
+    phoneNumberId,
+    config.accessToken
+  );
+  
+  // Step 3: Send notification to AGENT with lead's info
+  const agentNotification = `🔔 *Nuevo lead asignado*\n\n👤 *Nombre:* ${leadName || 'No proporcionado'}\n📱 *Teléfono:* ${leadPhoneFormatted}\n💬 *Mensaje:* "${messageText || 'Sin mensaje'}"\n\n_Contacta al cliente desde tu WhatsApp personal._`;
+  
+  const agentResult = await whatsapp.sendTextMessage(
+    assignment.agent.waNumber,
+    agentNotification,
     phoneNumberId,
     config.accessToken
   );
   
   return {
-    success: sendResult.success,
+    success: clientResult.success && agentResult.success,
     assignment: assignment.assignment,
     agent: assignment.agent,
-    messageSent: sendResult.success,
-    messageError: sendResult.error || null
+    clientMessageSent: clientResult.success,
+    clientMessageError: clientResult.error || null,
+    agentNotificationSent: agentResult.success,
+    agentNotificationError: agentResult.error || null
   };
 }
 
