@@ -85,7 +85,8 @@ function formatPhoneForDisplay(phone) {
 
 /**
  * Handle incoming webhook from GHL/Kirk
- * Assigns the lead and sends notifications to both client and agent
+ * Assigns the lead and sends notification to the agent only
+ * (Client response is handled by GHL automations)
  * @param {object} webhookData - Webhook payload
  * @param {object} config - Configuration with tokens
  * @returns {Promise<object>} - Result of the operation
@@ -106,20 +107,10 @@ async function handleIncomingLead(webhookData, config) {
   }
   
   const phoneNumberId = assignment.agent.phoneNumberId || config.phoneNumberId;
-  const agentPhoneFormatted = formatPhoneForDisplay(assignment.agent.waNumber);
   const leadPhoneFormatted = formatPhoneForDisplay(leadPhone);
   
-  // Step 2: Send message to CLIENT with agent's contact info
-  const clientMessage = `Hola${leadName ? ` ${leadName}` : ''}, gracias por contactar a AIM Global. 🙌\n\nTe va a contactar ${assignment.agent.name} de nuestro equipo al número ${agentPhoneFormatted}.\n\n¡Pronto estaremos en contacto!`;
-  
-  const clientResult = await whatsapp.sendTextMessage(
-    leadPhone,
-    clientMessage,
-    phoneNumberId,
-    config.accessToken
-  );
-  
-  // Step 3: Send notification to AGENT with lead's info
+  // Step 2: Send notification to AGENT with lead's info
+  // (No message to client - GHL handles that)
   const agentNotification = `🔔 *Nuevo lead asignado*\n\n👤 *Nombre:* ${leadName || 'No proporcionado'}\n📱 *Teléfono:* ${leadPhoneFormatted}\n💬 *Mensaje:* "${messageText || 'Sin mensaje'}"\n\n_Contacta al cliente desde tu WhatsApp personal._`;
   
   const agentResult = await whatsapp.sendTextMessage(
@@ -130,11 +121,9 @@ async function handleIncomingLead(webhookData, config) {
   );
   
   return {
-    success: clientResult.success && agentResult.success,
+    success: agentResult.success,
     assignment: assignment.assignment,
     agent: assignment.agent,
-    clientMessageSent: clientResult.success,
-    clientMessageError: clientResult.error || null,
     agentNotificationSent: agentResult.success,
     agentNotificationError: agentResult.error || null
   };
