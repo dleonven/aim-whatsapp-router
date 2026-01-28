@@ -58,6 +58,82 @@ app.post('/webhook/main-whatsapp', async (req, res) => {
 });
 
 // ============================================
+// META WEBHOOK (Direct from WhatsApp Cloud API)
+// ============================================
+
+const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'aim-router-verify-2026';
+
+/**
+ * Meta webhook verification (GET)
+ * Meta sends a challenge to verify the webhook URL
+ */
+app.get('/webhook/meta', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('✅ Meta webhook verified');
+    res.status(200).send(challenge);
+  } else {
+    console.log('❌ Meta webhook verification failed');
+    res.sendStatus(403);
+  }
+});
+
+/**
+ * Meta webhook receiver (POST)
+ * Receives incoming WhatsApp messages from Meta Cloud API
+ */
+app.post('/webhook/meta', async (req, res) => {
+  try {
+    // Always respond 200 quickly to Meta
+    res.sendStatus(200);
+    
+    const body = req.body;
+    
+    // Check if this is a WhatsApp message
+    if (body.object !== 'whatsapp_business_account') {
+      return;
+    }
+    
+    // Extract message data
+    const entry = body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    
+    // Only process incoming messages (not status updates)
+    if (!value?.messages || value.messages.length === 0) {
+      return;
+    }
+    
+    const message = value.messages[0];
+    const contact = value.contacts?.[0];
+    
+    // Extract lead info
+    const leadPhone = message.from; // Sender's phone number
+    const leadName = contact?.profile?.name || null;
+    const messageText = message.text?.body || message.type || '';
+    
+    console.log(`\n📱 Meta webhook received:`);
+    console.log(`   From: ${leadPhone}`);
+    console.log(`   Name: ${leadName}`);
+    console.log(`   Message: ${messageText}`);
+    
+    // Route the lead
+    await router.handleIncomingLead({
+      leadPhone,
+      leadName,
+      messageText,
+      source: 'meta'
+    }, config);
+    
+  } catch (error) {
+    console.error('❌ Meta webhook error:', error);
+  }
+});
+
+// ============================================
 // AGENT MANAGEMENT ENDPOINTS
 // ============================================
 
