@@ -130,9 +130,9 @@ async function handleIncomingLead(webhookData, config) {
 		{
 			type: "body",
 			parameters: [
-				{ type: "name", text: paramName },
-				{ type: "name", text: paramPhone },
-				{ type: "name", text: paramMessage },
+				{ type: "text", text: paramName },
+				{ type: "text", text: paramPhone },
+				{ type: "text", text: paramMessage },
 			],
 		},
 	];
