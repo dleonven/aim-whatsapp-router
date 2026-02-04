@@ -121,7 +121,7 @@ async function handleIncomingLead(webhookData, config) {
 
 	// Step 2: Send notification to AGENT via approved template (works outside 24h window)
 	const templateName = "nuevo_lead";
-	const languageCode = "es"; // Spanish – use 'es_CL' if your template is Chile-specific
+	const languageCode = process.env.WHATSAPP_TEMPLATE_LANGUAGE || "es_CL"; // Spanish (Chile) – must match template in Meta
 	const components = [
 		{
 			type: "body",
@@ -143,11 +143,19 @@ async function handleIncomingLead(webhookData, config) {
 	);
 
 	// Record whether the agent was notified (so you can see it in GET /assignments)
-	db.updateAssignmentNotification(
-		assignment.assignment.id,
-		agentResult.success,
-		agentResult.error || null
-	);
+	const errMsg =
+		agentResult.error == null
+			? null
+			: typeof agentResult.error === "string"
+				? agentResult.error
+				: JSON.stringify(agentResult.error);
+	if (assignment.assignment.id != null) {
+		db.updateAssignmentNotification(
+			assignment.assignment.id,
+			agentResult.success,
+			errMsg
+		);
+	}
 
 	return {
 		success: agentResult.success,
