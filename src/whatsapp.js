@@ -74,8 +74,21 @@ async function sendTemplateMessage(to, templateName, languageCode, components, p
   };
 
   if (components && components.length > 0) {
-    payload.template.components = components;
+    // Meta rejects empty or non-string parameter values; normalize each body parameter
+    payload.template.components = components.map((c) => {
+      if (c.type !== 'body' || !Array.isArray(c.parameters)) return c;
+      return {
+        type: 'body',
+        parameters: c.parameters.map((p) => ({
+          type: 'text',
+          text: String(p && p.text != null ? p.text : '').trim().slice(0, 1024) || '—'
+        }))
+      };
+    });
   }
+
+  // Debug: log payload (no secrets) to trace "Parameter name is missing or empty"
+  console.log('Template request payload:', JSON.stringify(payload, null, 2));
 
   try {
     const response = await axios.post(url, payload, {
