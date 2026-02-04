@@ -57,32 +57,31 @@ async function sendTextMessage(to, message, phoneNumberId, accessToken) {
  */
 async function sendTemplateMessage(to, templateName, languageCode, components, phoneNumberId, accessToken) {
   const url = `${GRAPH_API_URL}/${phoneNumberId}/messages`;
-  const name = String(templateName || '').trim() || 'nuevo_lead';
-  const code = String(languageCode || '').trim() || 'es_CL';
+  const templateNameStr = String(templateName || '').trim() || 'nuevo_lead';
+  const languageCodeStr = String(languageCode || '').trim() || 'es_CL'; // Spanish (CHL) – match template in Meta
   const payload = {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
     to: String(to || '').trim(),
     type: 'template',
     template: {
-      name,
+      name: templateNameStr,
       language: {
-        code,
-        policy: 'deterministic'  // Required; "Parameter name" error when missing
+        code: languageCodeStr
       }
     }
   };
 
   if (components && components.length > 0 && process.env.WHATSAPP_SKIP_TEMPLATE_COMPONENTS !== '1') {
-    // Meta only accepts { type: "text", text: "value" } per parameter (positional; no custom keys)
     const ensureStr = (v) => String(v != null ? v : '').trim().slice(0, 1024) || '—';
     payload.template.components = components.map((c) => {
       if (c.type !== 'body' || !Array.isArray(c.parameters)) return c;
       return {
         type: 'body',
         parameters: c.parameters.map((p) => {
-          const value = p && (p.text ?? p.name ?? p.phone ?? p.message);
-          return { type: 'text', text: ensureStr(value) };
+          const value = ensureStr(p && (p.text ?? p.name ?? p.phone ?? p.message));
+          const paramType = (p && p.type === 'name') ? 'name' : 'text';
+          return paramType === 'name' ? { type: 'name', text: value } : { type: 'text', text: value };
         }),
       };
     });
