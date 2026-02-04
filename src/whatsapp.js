@@ -66,20 +66,26 @@ async function sendTemplateMessage(to, templateName, languageCode, components, p
     type: 'template',
     template: {
       name,
-      language: { code }
+      language: {
+        code,
+        policy: 'deterministic'  // Required; "Parameter name" error when missing
+      }
     }
   };
 
   if (components && components.length > 0) {
-    // Meta rejects empty or non-string parameter values; normalize each body parameter
+    // Template expects parameters as object with keys: name, phone, message
     payload.template.components = components.map((c) => {
-      if (c.type !== 'body' || !Array.isArray(c.parameters)) return c;
+      if (c.type !== 'body' || !c.parameters || typeof c.parameters !== 'object') return c;
+      const p = c.parameters;
+      const ensureStr = (v) => String(v != null ? v : '').trim().slice(0, 1024) || '—';
       return {
         type: 'body',
-        parameters: c.parameters.map((p) => ({
-          type: 'text',
-          text: String(p && p.text != null ? p.text : '').trim().slice(0, 1024) || '—'
-        }))
+        parameters: {
+          name: ensureStr(p.name),
+          phone: ensureStr(p.phone),
+          message: ensureStr(p.message),
+        },
       };
     });
   }
