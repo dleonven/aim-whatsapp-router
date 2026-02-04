@@ -80,9 +80,10 @@ async function sendTemplateMessage(to, templateName, languageCode, components, p
       return {
         type: 'body',
         parameters: c.parameters.map((p) => {
-          const value = ensureStr(p && (p.text ?? p.name ?? p.phone ?? p.message));
-          const paramType = (p && p.type === 'name') ? 'name' : 'text';
-          return paramType === 'name' ? { type: 'name', text: value } : { type: 'text', text: value };
+          const textVal = ensureStr(p && (p.text ?? p.name ?? p.phone ?? p.message));
+          const out = { type: 'text', text: textVal };
+          if (p && typeof p.number !== 'undefined') out.number = ensureStr(p.number);
+          return out;
         }),
       };
     });

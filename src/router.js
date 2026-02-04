@@ -120,27 +120,43 @@ async function handleIncomingLead(webhookData, config) {
 	const leadPhoneFormatted = formatPhoneForDisplay(leadPhone);
 
 	// Step 2: Send notification to AGENT via approved template (works outside 24h window)
-	const templateName = "nuevo_lead";
+	// If you get "Parameter name is missing or empty", create a NEW template in Meta with same body
+	// but set "Type of variable" to "Text" (not "Name") for all 3 variables, then set WHATSAPP_TEMPLATE_NAME to that template name.
+	const templateName = process.env.WHATSAPP_TEMPLATE_NAME || "nuevo_lead";
 	const languageCode = process.env.WHATSAPP_TEMPLATE_LANGUAGE || "es_CL"; // Spanish (Chile) – must match template in Meta
-	// Meta requires all template parameters to be non-empty strings (no numbers, no empty)
 	const paramName = String(leadName || "No proporcionado").trim() || "—";
-	const paramPhone = String(leadPhoneFormatted || leadPhone || "").trim() || "—";
+	const paramPhone = (leadPhoneFormatted || leadPhone || "")
+		.toString()
+		.trim();
+	const paramPhoneNumber = paramPhone
+		? "+" + paramPhone.replace(/\D/g, "")
+		: "—"; // e.g. +56996096419
 	const paramMessage = String(messageText || "Sin mensaje").trim() || "—";
+	// Template has 3 Number-type variables: send 1st and 3rd as text, 2nd (phone) with number key
 	const components = [
 		{
 			type: "body",
 			parameters: [
 				{ type: "text", text: paramName },
-				{ type: "text", text: paramPhone },
+				{ type: "text", text: paramPhoneNumber },
 				{ type: "text", text: paramMessage },
 			],
 		},
 	];
 
-	const toNumber = (String(assignment.agent.waNumber || "").replace(/\D/g, "") || String(assignment.agent.waNumber || "")).trim();
+	const toNumber = (
+		String(assignment.agent.waNumber || "").replace(/\D/g, "") ||
+		String(assignment.agent.waNumber || "")
+	).trim();
 	if (!toNumber) {
 		console.error("❌ No agent wa_number for template send");
-		return { success: false, assignment: assignment.assignment, agent: assignment.agent, agentNotificationSent: false, agentNotificationError: "No agent wa_number" };
+		return {
+			success: false,
+			assignment: assignment.assignment,
+			agent: assignment.agent,
+			agentNotificationSent: false,
+			agentNotificationError: "No agent wa_number",
+		};
 	}
 	const agentResult = await whatsapp.sendTemplateMessage(
 		toNumber,
@@ -156,8 +172,8 @@ async function handleIncomingLead(webhookData, config) {
 		agentResult.error == null
 			? null
 			: typeof agentResult.error === "string"
-				? agentResult.error
-				: JSON.stringify(agentResult.error);
+			? agentResult.error
+			: JSON.stringify(agentResult.error);
 	if (assignment.assignment.id != null) {
 		db.updateAssignmentNotification(
 			assignment.assignment.id,
