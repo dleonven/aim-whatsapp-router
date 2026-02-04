@@ -129,11 +129,11 @@ async function handleIncomingLead(webhookData, config) {
 	const components = [
 		{
 			type: "body",
-			parameters: {
-				name: paramName,
-				phone: paramPhone,
-				message: paramMessage,
-			},
+			parameters: [
+				{ name: paramName },
+				{ phone: paramPhone },
+				{ message: paramMessage },
+			],
 		},
 	];
 

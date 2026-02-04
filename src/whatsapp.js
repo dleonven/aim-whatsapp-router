@@ -74,18 +74,18 @@ async function sendTemplateMessage(to, templateName, languageCode, components, p
   };
 
   if (components && components.length > 0) {
-    // Template expects parameters as object with keys: name, phone, message
+    // Meta: parameters must be array of JSON objects; each object has one key (name, phone, message)
     payload.template.components = components.map((c) => {
-      if (c.type !== 'body' || !c.parameters || typeof c.parameters !== 'object') return c;
-      const p = c.parameters;
+      if (c.type !== 'body' || !Array.isArray(c.parameters)) return c;
       const ensureStr = (v) => String(v != null ? v : '').trim().slice(0, 1024) || '—';
       return {
         type: 'body',
-        parameters: {
-          name: ensureStr(p.name),
-          phone: ensureStr(p.phone),
-          message: ensureStr(p.message),
-        },
+        parameters: c.parameters.map((p) => {
+          if (p && typeof p === 'object' && 'name' in p) return { name: ensureStr(p.name) };
+          if (p && typeof p === 'object' && 'phone' in p) return { phone: ensureStr(p.phone) };
+          if (p && typeof p === 'object' && 'message' in p) return { message: ensureStr(p.message) };
+          return p;
+        }),
       };
     });
   }
