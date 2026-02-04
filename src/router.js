@@ -122,19 +122,28 @@ async function handleIncomingLead(webhookData, config) {
 	// Step 2: Send notification to AGENT via approved template (works outside 24h window)
 	const templateName = "nuevo_lead";
 	const languageCode = process.env.WHATSAPP_TEMPLATE_LANGUAGE || "es_CL"; // Spanish (Chile) – must match template in Meta
+	// Meta requires all template parameters to be non-empty strings (no numbers, no empty)
+	const paramName = String(leadName || "No proporcionado").trim() || "—";
+	const paramPhone = String(leadPhoneFormatted || leadPhone || "").trim() || "—";
+	const paramMessage = String(messageText || "Sin mensaje").trim() || "—";
 	const components = [
 		{
 			type: "body",
 			parameters: [
-				{ type: "text", text: leadName || "No proporcionado" },
-				{ type: "text", text: leadPhoneFormatted },
-				{ type: "text", text: messageText || "Sin mensaje" },
+				{ type: "text", text: paramName },
+				{ type: "text", text: paramPhone },
+				{ type: "text", text: paramMessage },
 			],
 		},
 	];
 
+	const toNumber = (String(assignment.agent.waNumber || "").replace(/\D/g, "") || String(assignment.agent.waNumber || "")).trim();
+	if (!toNumber) {
+		console.error("❌ No agent wa_number for template send");
+		return { success: false, assignment: assignment.assignment, agent: assignment.agent, agentNotificationSent: false, agentNotificationError: "No agent wa_number" };
+	}
 	const agentResult = await whatsapp.sendTemplateMessage(
-		assignment.agent.waNumber,
+		toNumber,
 		templateName,
 		languageCode,
 		components,
