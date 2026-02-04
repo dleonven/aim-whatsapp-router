@@ -73,18 +73,16 @@ async function sendTemplateMessage(to, templateName, languageCode, components, p
     }
   };
 
-  if (components && components.length > 0) {
-    // Meta: parameters must be array of JSON objects; each object has one key (name, phone, message)
+  if (components && components.length > 0 && process.env.WHATSAPP_SKIP_TEMPLATE_COMPONENTS !== '1') {
+    // Meta only accepts { type: "text", text: "value" } per parameter (positional; no custom keys)
+    const ensureStr = (v) => String(v != null ? v : '').trim().slice(0, 1024) || '—';
     payload.template.components = components.map((c) => {
       if (c.type !== 'body' || !Array.isArray(c.parameters)) return c;
-      const ensureStr = (v) => String(v != null ? v : '').trim().slice(0, 1024) || '—';
       return {
         type: 'body',
         parameters: c.parameters.map((p) => {
-          if (p && typeof p === 'object' && 'name' in p) return { name: ensureStr(p.name) };
-          if (p && typeof p === 'object' && 'phone' in p) return { phone: ensureStr(p.phone) };
-          if (p && typeof p === 'object' && 'message' in p) return { message: ensureStr(p.message) };
-          return p;
+          const value = p && (p.text ?? p.name ?? p.phone ?? p.message);
+          return { type: 'text', text: ensureStr(value) };
         }),
       };
     });
