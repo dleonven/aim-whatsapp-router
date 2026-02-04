@@ -57,16 +57,18 @@ async function sendTextMessage(to, message, phoneNumberId, accessToken) {
  */
 async function sendTemplateMessage(to, templateName, languageCode, components, phoneNumberId, accessToken) {
   const url = `${GRAPH_API_URL}/${phoneNumberId}/messages`;
-  
+  const name = String(templateName || '').trim() || 'nuevo_lead';
+  const code = String(languageCode || '').trim() || 'es_CL';
   const payload = {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
-    to: to,
+    to: String(to || '').trim(),
     type: 'template',
     template: {
-      name: templateName,
+      name,
       language: {
-        code: languageCode
+        code,
+        policy: 'deterministic'  // Required by Meta; only supported option
       }
     }
   };
