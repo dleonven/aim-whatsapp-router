@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v21.0';
+const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v18.0';
 const GRAPH_API_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 /**
@@ -67,7 +67,8 @@ async function sendTemplateMessage(to, templateName, languageCode, components, p
     template: {
       name: templateNameStr,
       language: {
-        code: languageCodeStr
+        code: languageCodeStr,
+        policy: 'deterministic'
       }
     }
   };
