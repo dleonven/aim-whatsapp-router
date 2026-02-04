@@ -1,5 +1,5 @@
-const db = require('./db');
-const whatsapp = require('./whatsapp');
+const db = require("./db");
+const whatsapp = require("./whatsapp");
 
 /**
  * Get the next agent using round robin
@@ -7,15 +7,15 @@ const whatsapp = require('./whatsapp');
  * @returns {object|null} - Agent object or null if no active agents
  */
 function getNextAgent() {
-  const agents = db.getActiveAgents();
-  
-  if (agents.length === 0) {
-    console.warn('⚠️ No active agents available');
-    return null;
-  }
-  
-  // First agent in the list has the oldest last_assigned_at (or null)
-  return agents[0];
+	const agents = db.getActiveAgents();
+
+	if (agents.length === 0) {
+		console.warn("⚠️ No active agents available");
+		return null;
+	}
+
+	// First agent in the list has the oldest last_assigned_at (or null)
+	return agents[0];
 }
 
 /**
@@ -26,61 +26,70 @@ function getNextAgent() {
  * @returns {object} - Assignment result with agent info
  */
 function assignLead(leadPhone, leadName, messageText) {
-  // Normalize phone number (remove spaces, dashes, etc.)
-  const normalizedPhone = leadPhone.replace(/[\s\-\(\)]/g, '');
-  
-  // Check if lead already has an assignment (for future continuity feature)
-  // For now, we always create a new assignment (hello world version)
-  
-  // Get next agent via round robin
-  const agent = getNextAgent();
-  
-  if (!agent) {
-    return { 
-      success: false, 
-      error: 'No active agents available' 
-    };
-  }
-  
-  // Create the assignment
-  const result = db.createAssignment(normalizedPhone, leadName, agent.id, messageText);
-  
-  // Update agent's last assigned timestamp
-  db.updateAgentLastAssigned(agent.id);
-  
-  console.log(`📋 Assigned lead ${normalizedPhone} to agent ${agent.name} (${agent.wa_number})`);
-  
-  return {
-    success: true,
-    assignment: {
-      id: result.lastInsertRowid,
-      leadPhone: normalizedPhone,
-      leadName,
-      messageText
-    },
-    agent: {
-      id: agent.id,
-      name: agent.name,
-      waNumber: agent.wa_number,
-      phoneNumberId: agent.phone_number_id
-    }
-  };
+	// Normalize phone number (remove spaces, dashes, etc.)
+	const normalizedPhone = leadPhone.replace(/[\s\-\(\)]/g, "");
+
+	// Check if lead already has an assignment (for future continuity feature)
+	// For now, we always create a new assignment (hello world version)
+
+	// Get next agent via round robin
+	const agent = getNextAgent();
+
+	if (!agent) {
+		return {
+			success: false,
+			error: "No active agents available",
+		};
+	}
+
+	// Create the assignment
+	const result = db.createAssignment(
+		normalizedPhone,
+		leadName,
+		agent.id,
+		messageText
+	);
+
+	// Update agent's last assigned timestamp
+	db.updateAgentLastAssigned(agent.id);
+
+	console.log(
+		`📋 Assigned lead ${normalizedPhone} to agent ${agent.name} (${agent.wa_number})`
+	);
+
+	return {
+		success: true,
+		assignment: {
+			id: result.lastInsertRowid,
+			leadPhone: normalizedPhone,
+			leadName,
+			messageText,
+		},
+		agent: {
+			id: agent.id,
+			name: agent.name,
+			waNumber: agent.wa_number,
+			phoneNumberId: agent.phone_number_id,
+		},
+	};
 }
 
 /**
  * Format phone number for display (e.g., "56912345678" -> "+56 9 1234 5678")
  */
 function formatPhoneForDisplay(phone) {
-  // Remove any non-digits
-  const digits = phone.replace(/\D/g, '');
-  
-  // Chilean format: +56 9 XXXX XXXX
-  if (digits.startsWith('56') && digits.length === 11) {
-    return `+56 ${digits.slice(2, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`;
-  }
-  
-  // Default: just add + prefix
-  return `+${digits}`;
+	// Remove any non-digits
+	const digits = phone.replace(/\D/g, "");
+
+	// Chilean format: +56 9 XXXX XXXX
+	if (digits.startsWith("56") && digits.length === 11) {
+		return `+56 ${digits.slice(2, 3)} ${digits.slice(3, 7)} ${digits.slice(
+			7
+		)}`;
+	}
+
+	// Default: just add + prefix
+	return `+${digits}`;
 }
 
 /**
@@ -92,47 +101,65 @@ function formatPhoneForDisplay(phone) {
  * @returns {Promise<object>} - Result of the operation
  */
 async function handleIncomingLead(webhookData, config) {
-  const { leadPhone, leadName, messageText, source } = webhookData;
-  
-  console.log(`\n📥 Incoming lead from ${source || 'unknown'}:`);
-  console.log(`   Phone: ${leadPhone}`);
-  console.log(`   Name: ${leadName || 'N/A'}`);
-  console.log(`   Message: ${messageText || 'N/A'}`);
-  
-  // Step 1: Assign the lead to an agent
-  const assignment = assignLead(leadPhone, leadName, messageText);
-  
-  if (!assignment.success) {
-    return assignment;
-  }
-  
-  const phoneNumberId = assignment.agent.phoneNumberId || config.phoneNumberId;
-  const leadPhoneFormatted = formatPhoneForDisplay(leadPhone);
-  
-  // Step 2: Send notification to AGENT with lead's info
-  // (No message to client - GHL handles that)
-  const agentNotification = `🔔 *Nuevo lead asignado*\n\n👤 *Nombre:* ${leadName || 'No proporcionado'}\n📱 *Teléfono:* ${leadPhoneFormatted}\n💬 *Mensaje:* "${messageText || 'Sin mensaje'}"\n\n_Contacta al cliente desde tu WhatsApp personal._`;
-  
-  const agentResult = await whatsapp.sendTextMessage(
-    assignment.agent.waNumber,
-    agentNotification,
-    phoneNumberId,
-    config.accessToken
-  );
-  
-  return {
-    success: agentResult.success,
-    assignment: assignment.assignment,
-    agent: assignment.agent,
-    agentNotificationSent: agentResult.success,
-    agentNotificationError: agentResult.error || null
-  };
+	const { leadPhone, leadName, messageText, source } = webhookData;
+
+	console.log(`\n📥 Incoming lead from ${source || "unknown"}:`);
+	console.log(`   Phone: ${leadPhone}`);
+	console.log(`   Name: ${leadName || "N/A"}`);
+	console.log(`   Message: ${messageText || "N/A"}`);
+
+	// Step 1: Assign the lead to an agent
+	const assignment = assignLead(leadPhone, leadName, messageText);
+
+	if (!assignment.success) {
+		return assignment;
+	}
+
+	const phoneNumberId =
+		assignment.agent.phoneNumberId || config.phoneNumberId;
+	const leadPhoneFormatted = formatPhoneForDisplay(leadPhone);
+
+	// Step 2: Send notification to AGENT via approved template (works outside 24h window)
+	const templateName = "nuevo_lead";
+	const languageCode = "es"; // Spanish – use 'es_CL' if your template is Chile-specific
+	const components = [
+		{
+			type: "body",
+			parameters: [
+				{ type: "text", text: leadName || "No proporcionado" },
+				{ type: "text", text: leadPhoneFormatted },
+				{ type: "text", text: messageText || "Sin mensaje" },
+			],
+		},
+	];
+
+	const agentResult = await whatsapp.sendTemplateMessage(
+		assignment.agent.waNumber,
+		templateName,
+		languageCode,
+		components,
+		phoneNumberId,
+		config.accessToken
+	);
+
+	// Record whether the agent was notified (so you can see it in GET /assignments)
+	db.updateAssignmentNotification(
+		assignment.assignment.id,
+		agentResult.success,
+		agentResult.error || null
+	);
+
+	return {
+		success: agentResult.success,
+		assignment: assignment.assignment,
+		agent: assignment.agent,
+		agentNotificationSent: agentResult.success,
+		agentNotificationError: agentResult.error || null,
+	};
 }
 
 module.exports = {
-  getNextAgent,
-  assignLead,
-  handleIncomingLead
+	getNextAgent,
+	assignLead,
+	handleIncomingLead,
 };
-
-
