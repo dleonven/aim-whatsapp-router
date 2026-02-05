@@ -21,6 +21,23 @@ if (!config.phoneNumberId || !config.accessToken) {
   process.exit(1);
 }
 
+// Ensure default agents exist (e.g. fresh prod DB after deploy)
+const agentCount = db.db.prepare('SELECT COUNT(*) as c FROM agents').get().c;
+if (agentCount === 0) {
+  const defaults = [
+    { name: 'Diego', wa_number: '56996096419' },
+    { name: 'Rosario', wa_number: '56953494307' }
+  ];
+  defaults.forEach(({ name, wa_number }) => {
+    try {
+      db.addAgent(name, wa_number);
+      console.log('  Added default agent:', name, wa_number);
+    } catch (e) {
+      if (!e.message?.includes('UNIQUE')) console.warn('  Agent add:', e.message);
+    }
+  });
+}
+
 // ============================================
 // WEBHOOK ENDPOINTS
 // ============================================

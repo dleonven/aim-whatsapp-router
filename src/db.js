@@ -1,7 +1,20 @@
 const Database = require("better-sqlite3");
+const fs = require("fs");
 const path = require("path");
 
-const db = new Database(path.join(__dirname, "..", "router.db"));
+// Use DATABASE_PATH in production so the DB survives redeploys (git pull, re-clone, or new container).
+// Default: project root router.db (good for local dev; can be wiped on deploy).
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, "..", "router.db");
+if (process.env.DATABASE_PATH) {
+  const dir = path.dirname(dbPath);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    console.warn("Could not create database directory:", dir, e.message);
+  }
+}
+
+const db = new Database(dbPath);
 
 // Initialize tables
 db.exec(`

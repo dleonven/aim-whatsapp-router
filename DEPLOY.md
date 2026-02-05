@@ -58,6 +58,10 @@ cd /opt/aim-whatsapp-router
 # Instalar dependencias
 npm install
 
+# Crear directorio persistente para la base de datos (evita perder agentes en cada deploy)
+sudo mkdir -p /var/lib/aim-whatsapp-router
+sudo chown "$(whoami)" /var/lib/aim-whatsapp-router
+
 # Crear archivo .env
 nano .env
 ```
@@ -68,9 +72,20 @@ WHATSAPP_PHONE_NUMBER_ID=971571259364819
 WHATSAPP_WABA_ID=746826601254906
 WHATSAPP_ACCESS_TOKEN=TU_ACCESS_TOKEN_AQUI
 PORT=3000
+# Base de datos persistente: sobrevive a git pull / re-clone / redeploy
+DATABASE_PATH=/var/lib/aim-whatsapp-router/router.db
 ```
 
 Guardar: `Ctrl+X`, luego `Y`, luego `Enter`
+
+## Paso 5b: Cargar agentes (primera vez o después de DB nueva)
+
+```bash
+cd /opt/aim-whatsapp-router
+node scripts/seed-agents.js
+```
+
+Esto agrega los agentes por defecto (Diego, Rosario). Si ya existían, no hace nada.
 
 ## Paso 6: Iniciar la aplicación con PM2
 
@@ -167,6 +182,12 @@ pm2 stop aim-whatsapp-router
 # Monitoreo
 pm2 monit
 ```
+
+## Por qué se perdían los agentes en cada deploy
+
+La base de datos (`router.db`) estaba dentro del proyecto. Si en cada deploy haces **git pull** en otro directorio y reinicias desde ahí, o **re-clonas** el repo, o usas **App Platform** (contenedor nuevo), ese archivo no existe en la copia nueva y la app crea una base de datos vacía.
+
+**Solución:** usar una ruta persistente fuera del código con `DATABASE_PATH` (ej. `/var/lib/aim-whatsapp-router/router.db`). Así los agentes y asignaciones sobreviven a redeploys. Tras el primer deploy con `DATABASE_PATH` configurado, ejecuta una vez `node scripts/seed-agents.js` para cargar los agentes.
 
 ## Monitoreo y Alertas (opcional)
 
