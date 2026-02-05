@@ -102,6 +102,23 @@ app.post('/webhook/meta', async (req, res) => {
     const changes = entry?.changes?.[0];
     const value = changes?.value;
     
+    // Process message status updates (outgoing template messages we sent)
+    if (value?.statuses && value.statuses.length > 0) {
+      for (const status of value.statuses) {
+        const recipientId = status.recipient_id;
+        const msgStatus = status.status; // sent | delivered | read | failed
+        const msgId = status.id;
+        const errors = status.errors;
+        const timestamp = status.timestamp;
+        console.log(`\n📬 Message status (Meta webhook):`);
+        console.log(`   To: ${recipientId} | Status: ${msgStatus} | Message ID: ${msgId} | Time: ${timestamp ? new Date(Number(timestamp) * 1000).toISOString() : '—'}`);
+        if (errors && errors.length > 0) {
+          console.error(`   ❌ Errors:`, JSON.stringify(errors, null, 2));
+        }
+      }
+      return;
+    }
+
     // Only process incoming messages (not status updates)
     if (!value?.messages || value.messages.length === 0) {
       return;
