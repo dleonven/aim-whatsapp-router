@@ -108,6 +108,19 @@ async function handleIncomingLead(webhookData, config) {
 	console.log(`   Name: ${leadName || "N/A"}`);
 	console.log(`   Message: ${messageText || "N/A"}`);
 
+	// Don't treat agents as leads: if they message the business, skip routing (no assignment, no template)
+	const normalizedPhone = String(leadPhone || "").replace(/[\s\-\(\)]/g, "");
+	const existingAgent = db.getAgentByWaNumber(normalizedPhone);
+	if (existingAgent) {
+		console.log(`   ⏭️ Skipped: ${normalizedPhone} is agent ${existingAgent.name}, not a lead`);
+		return {
+			success: true,
+			skipped: true,
+			reason: "sender_is_agent",
+			agentName: existingAgent.name,
+		};
+	}
+
 	// Step 1: Assign the lead to an agent
 	const assignment = assignLead(leadPhone, leadName, messageText);
 

@@ -63,6 +63,13 @@ function getAgentById(id) {
 	return db.prepare("SELECT * FROM agents WHERE id = ?").get(id);
 }
 
+/** Return agent if this phone is an agent's wa_number (digits-only match), else null */
+function getAgentByWaNumber(phone) {
+	const digits = String(phone || "").replace(/\D/g, "");
+	if (!digits) return null;
+	return db.prepare("SELECT * FROM agents WHERE wa_number = ? OR REPLACE(REPLACE(wa_number, ' ', ''), '+', '') = ?").get(digits, digits);
+}
+
 function addAgent(name, waNumber, phoneNumberId = null) {
 	const stmt = db.prepare(
 		"INSERT INTO agents (name, wa_number, phone_number_id) VALUES (?, ?, ?)"
@@ -123,6 +130,7 @@ module.exports = {
 	db,
 	getActiveAgents,
 	getAgentById,
+	getAgentByWaNumber,
 	addAgent,
 	updateAgentLastAssigned,
 	setAgentActive,
