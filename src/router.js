@@ -103,29 +103,10 @@ function formatPhoneForDisplay(phone) {
 async function handleIncomingLead(webhookData, config) {
 	const { leadPhone, leadName, messageText, source } = webhookData;
 
-	// Don't treat agents as leads: if they message the business, skip routing (no assignment, no template).
-	// Set ALLOW_AGENT_AS_LEAD=1 to test with a single number (you as both agent and test lead).
-	const normalizedPhone = String(leadPhone || "").replace(/[\s\-\(\)]/g, "");
-	const existingAgent = db.getAgentByWaNumber(normalizedPhone);
-	const allowAgentAsLead = process.env.ALLOW_AGENT_AS_LEAD === "1" || process.env.ALLOW_AGENT_AS_LEAD === "true";
-	if (existingAgent && !allowAgentAsLead) {
-		console.log(`\n⏭️ Message from agent ${existingAgent.name} (${normalizedPhone}), not treated as lead`);
-		return {
-			success: true,
-			skipped: true,
-			reason: "sender_is_agent",
-			agentName: existingAgent.name,
-		};
-	}
-
 	console.log(`\n📥 Incoming lead from ${source || "unknown"}:`);
 	console.log(`   Phone: ${leadPhone}`);
 	console.log(`   Name: ${leadName || "N/A"}`);
 	console.log(`   Message: ${messageText || "N/A"}`);
-
-	if (existingAgent && allowAgentAsLead) {
-		console.log(`   🧪 Test mode: treating agent ${existingAgent.name} as lead (ALLOW_AGENT_AS_LEAD=1)`);
-	}
 
 	// Step 1: Assign the lead to an agent
 	const assignment = assignLead(leadPhone, leadName, messageText);
