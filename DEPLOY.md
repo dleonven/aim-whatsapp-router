@@ -74,7 +74,12 @@ WHATSAPP_ACCESS_TOKEN=TU_ACCESS_TOKEN_AQUI
 PORT=3000
 # Base de datos persistente: sobrevive a git pull / re-clone / redeploy
 DATABASE_PATH=/var/lib/aim-whatsapp-router/router.db
+
+# Testing con un solo teléfono (tú como agente y lead). En producción, pon 1 para probar; luego 0 o quítalo.
+ALLOW_AGENT_AS_LEAD=1
 ```
+
+**Para probar en producción con tu mismo número (agente = lead):** en el servidor edita `.env`, añade `ALLOW_AGENT_AS_LEAD=1`, guarda y reinicia: `pm2 restart aim-whatsapp-router`. Cuando termines de probar, pon `ALLOW_AGENT_AS_LEAD=0` o borra la línea.
 
 Guardar: `Ctrl+X`, luego `Y`, luego `Enter`
 
