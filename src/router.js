@@ -19,7 +19,9 @@ function getNextAgent() {
 }
 
 /**
- * Assign a lead to an agent
+ * Assign a lead to an agent.
+ * Returning leads (same phone already has an assignment) go to the same agent.
+ * New leads are assigned via round robin.
  * @param {string} leadPhone - Lead's phone number
  * @param {string} leadName - Lead's name (optional)
  * @param {string} messageText - Original message from the lead
@@ -29,11 +31,22 @@ function assignLead(leadPhone, leadName, messageText) {
 	// Normalize phone number (remove spaces, dashes, etc.)
 	const normalizedPhone = leadPhone.replace(/[\s\-\(\)]/g, "");
 
-	// Check if lead already has an assignment (for future continuity feature)
-	// For now, we always create a new assignment (hello world version)
+	let agent = null;
+	const existingAssignment = db.getAssignmentByLeadPhone(normalizedPhone);
 
-	// Get next agent via round robin
-	const agent = getNextAgent();
+	if (existingAssignment) {
+		// Returning lead: assign to the same agent as before
+		agent = db.getAgentById(existingAssignment.agent_id);
+		if (!agent) {
+			// Previous agent was removed; treat as new lead and use round robin
+			agent = getNextAgent();
+		}
+	}
+
+	if (!agent) {
+		// New lead: get next agent via round robin
+		agent = getNextAgent();
+	}
 
 	if (!agent) {
 		return {
@@ -42,7 +55,9 @@ function assignLead(leadPhone, leadName, messageText) {
 		};
 	}
 
-	// Create the assignment
+	const isReturningLead = !!existingAssignment;
+
+	// Create the assignment (one row per message for history)
 	const result = db.createAssignment(
 		normalizedPhone,
 		leadName,
@@ -50,11 +65,13 @@ function assignLead(leadPhone, leadName, messageText) {
 		messageText
 	);
 
-	// Update agent's last assigned timestamp
-	db.updateAgentLastAssigned(agent.id);
+	// Only update round-robin order for new leads
+	if (!isReturningLead) {
+		db.updateAgentLastAssigned(agent.id);
+	}
 
 	console.log(
-		`📋 Assigned lead ${normalizedPhone} to agent ${agent.name} (${agent.wa_number})`
+		`📋 ${isReturningLead ? "Re-assigned" : "Assigned"} lead ${normalizedPhone} to agent ${agent.name} (${agent.wa_number})`
 	);
 
 	return {
